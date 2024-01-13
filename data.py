@@ -132,7 +132,7 @@ table_info = [
     {
         'sheetname': 'fGL',
         'usecols': ['bussiness_unit_name', 'cost_center', 'voucher_date', 'voucher_number', 'credit', 'debit',
-                    'transaction_type', 'job_id', 'ledger_code', 'narration'],
+                    'transaction_type', 'job_number', 'ledger_code', 'narration'],
         'index': 'ledger_code'
     },
     {

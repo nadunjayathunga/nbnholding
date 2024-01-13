@@ -507,14 +507,12 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
                                       remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
         engine = create_engine(
             f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{database}')
-        try:
-            df_dcoa_adler = pd.read_sql('dCoAAdler', engine)
-            df_djobs = pd.read_sql('dJobs', engine)
-            df_fGl = pd.read_sql('fGL', engine)
-            df_dEmployee = pd.read_sql('dEmployee', engine)
-            df_dCustomers = pd.read_sql('dCustomers', engine)
-        except exc.ProgrammingError:
-            pass
+
+        df_dcoa_adler = pd.read_sql('dCoAAdler', engine)
+        df_djobs = pd.read_sql('dJobs', engine)
+        df_fGl = pd.read_sql('fGL', engine)
+        df_dEmployee = pd.read_sql('dEmployee', engine)
+        df_dCustomers = pd.read_sql('dCustomers', engine)
 
         # if any of above database are not avialable, then it will throw nameerror. need to fix !!!
 
@@ -661,7 +659,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
 
         pending_jobs = None
         highest_gp = None
-        if database in ['elite_security', 'premium']:
+        if database in ['nadunjayathunga$elite_security', 'nadunjayathunga$premium']:
             pending_jobs = 'Not Applicable'
             highest_gp = 'Not Applicable'
             visibility_state = {'display': 'none'}
