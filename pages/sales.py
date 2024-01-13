@@ -11,7 +11,6 @@ import plotly.express as px
 from dateutil.relativedelta import relativedelta
 import sshtunnel
 
-
 dash.register_page(__name__, external_stylesheets=[dbc.themes.PULSE])
 sshtunnel.SSH_TIMEOUT = 5.0
 sshtunnel.TUNNEL_TIMEOUT = 5.0
@@ -514,6 +513,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
         df_dEmployee = pd.read_sql('dEmployee', engine)
         df_dCustomers = pd.read_sql('dCustomers', engine)
 
+
         # if any of above database are not avialable, then it will throw nameerror. need to fix !!!
 
         df_fGl['net'] = df_fGl['credit'] - df_fGl['debit']
@@ -564,14 +564,14 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
         filt = df_merged['first_level'].isin(rev_types)
         df_merged = df_merged.loc[filt]
         v_types = list([i['data']['voucher_types'].keys()
-                        for i in company_info if i['data']['database'] == database][
-                           0])  # get the list of voucher types. this will return list of voucher types
+                        for i in company_info if i['data']['database'] == database][0])
+        # get the list of voucher types. this will return list of voucher types
 
         def order_id(row):
             for v_type in v_types:
                 split_pos = [i['data']['voucher_types'][v_type]
-                             for i in company_info if i['data']['database'] == database][
-                    0]  # this will return job_id split position for each voucher type
+                             for i in company_info if i['data']['database'] == database][0]
+                # this will return job_id split position for each voucher type
                 if row['transaction_type'] == v_type:
                     try:
                         # return job_number from transaction_type column
@@ -580,6 +580,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
                         pass
 
         df_merged['job_number'] = df_merged.apply(order_id, axis=1)
+
 
         def extract_part(text):
             pattern = r'^(.*?)-Rev.*$'
@@ -712,7 +713,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
         period_col: float = df_fGl.loc[period_col_filt, 'net'].sum()
 
         previous_col_filt = (df_fGl['voucher_date'] >= comparative_start) & (
-                    df_fGl['voucher_date'] <= comparative_end) & (
+                df_fGl['voucher_date'] <= comparative_end) & (
                                 df_fGl['ledger_code'].isin(cust_ledger)) & (df_fGl['transaction_type'] == 'Receipt')
         previous_col: float = df_fGl.loc[previous_col_filt, 'net'].sum()
 
@@ -905,7 +906,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
         job_revenue: float = df_GlJob_merged.loc[rev_filt, 'net'].sum()
 
         rev_filt_period = (df_GlJob_merged['customer_code'] == cust_select) & (
-                    df_GlJob_merged['voucher_date'] >= start_date) & (
+                df_GlJob_merged['voucher_date'] >= start_date) & (
                                   df_GlJob_merged['voucher_date'] <= end_date) & (df_GlJob_merged['first_level'].isin(
             rev_types))  # this will return a customer revenue for the selected period
 
@@ -913,7 +914,7 @@ def data_output(end_date, database, cust_select, time_freq, b1, b2, is_open_1, b
         )
 
         rev_filt_pre_period = (df_GlJob_merged['customer_code'] == cust_select) & (
-                    df_GlJob_merged['voucher_date'] >= comparative_start) & (
+                df_GlJob_merged['voucher_date'] >= comparative_start) & (
                                       df_GlJob_merged['voucher_date'] <= comparative_end) & (
                                   df_GlJob_merged['first_level'].isin(
                                       rev_types))  # this will return a customer revenue for the selected period
@@ -1099,7 +1100,7 @@ def budget_area(end_date, database, rev_type):
         filtered_budget = pd.concat(
             [filtered_budget, df_fGl[['ledger_code', 'voucher_date', 'net', 'type']]])
         budget_filter = (filtered_budget['voucher_date'] >= cy_begin_date) & (filtered_budget['net'] != 0) & (
-                    filtered_budget['voucher_date'] <= cy_end_date) & (
+                filtered_budget['voucher_date'] <= cy_end_date) & (
                             filtered_budget['ledger_code'].isin(
                                 df_dcoa_adler.loc[df_dcoa_adler['first_level'].isin(rev_types)][
                                     'ledger_code'].tolist()))
@@ -1143,4 +1144,3 @@ def budget_area(end_date, database, rev_type):
 
         return [act_vs_bud_bar,
                 act_vs_bud_ytd]
-        # rev_typewise_df.to_csv('my_file.csv',index=False)
