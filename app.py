@@ -121,7 +121,7 @@ def set_dates(company_db):
                                       remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
         engine = create_engine(
             f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{company_db}')
-        query = 'SELECT voucher_date FROM "fGL"'
+        query = 'SELECT voucher_date FROM fGL'
         df_fgl = pd.read_sql_query(query, engine)
 
         earliest_date = df_fgl['voucher_date'].min()
