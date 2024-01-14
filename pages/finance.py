@@ -3,22 +3,19 @@ import dash_bootstrap_components as dbc
 from data import time_series_data, fin_tiles_values, company_info, graph_legends, months, pl_sort_order, \
     create_narration, related_parties, bs_sort_order, elimination_ledgers
 from dash import dcc, html, callback, Output, Input, dash_table
-from creds import db_info
 import pandas as pd
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import create_engine
 from datetime import datetime as dt
 from datetime import date
 from datetime import timedelta
 import plotly.express as px
 import warnings
-import sshtunnel
+
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
-sshtunnel.SSH_TIMEOUT = 5.0
-sshtunnel.TUNNEL_TIMEOUT = 5.0
+
 dash.register_page(__name__,
                    path='/', external_stylesheets=[dbc.themes.PULSE, dbc.icons.BOOTSTRAP])
 
@@ -259,8 +256,7 @@ first_level = pd.DataFrame(
 
 @callback(
     [
-        Output(component_id='financial-matrics',
-               component_property='children'),
+        Output(component_id='financial-matrics',component_property='children'),
         Output(component_id='cat-rev', component_property='figure'),
         Output(component_id='cat-rev-ytd', component_property='figure'),
         Output(component_id='cat-gp', component_property='figure'),
@@ -281,23 +277,21 @@ first_level = pd.DataFrame(
     [
         Input(component_id='start-date', component_property='data'),
         Input(component_id='end-date', component_property='data'),
-        Input(component_id='database', component_property='data'),
         Input(component_id='time-series-fin', component_property='value'),
         Input(component_id='monthly-pl', component_property='active_cell'),
-        Input(component_id='bs-date-picker', component_property='date')
+        Input(component_id='bs-date-picker', component_property='date'),
+        Input(component_id='dCoAAdler', component_property='data'),
+        Input(component_id='fGL', component_property='data'),
+        Input(component_id='fBudget', component_property='data'),
+        Input(component_id='database', component_property='data'),
     ],
     prevent_initial_call=True
 )
-def data_output(start_date, end_date, database, time_freq, active_cell, bs_date):
-    with sshtunnel.SSHTunnelForwarder((db_info['SSHHOST'], 22),
-                                      ssh_username=db_info['USERNAME'],
-                                      ssh_password=db_info['PWDLOGIN'],
-                                      remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
-        engine = create_engine(
-            f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{database}')
-        df_dCoAAdler = pd.read_sql('dCoAAdler', engine)
-        df_fGl = pd.read_sql('fGL', engine)
+def data_output(start_date, end_date, time_freq, active_cell, bs_date, dCoAAdler, fGL, fBudget,database):
 
+        df_dCoAAdler = pd.DataFrame.from_dict(dCoAAdler)
+        df_fGl = pd.DataFrame.from_dict(fGL)
+        df_fGl['voucher_date'] = pd.to_datetime(df_fGl['voucher_date'])
         df_fGl['period'] = df_fGl['voucher_date'].dt.strftime(
             date_format='%m')  # return date as 01-12 i.e 2023-07-24 --> 07
         df_fGl_combined = pd.merge(
@@ -305,7 +299,8 @@ def data_output(start_date, end_date, database, time_freq, active_cell, bs_date)
         df_fGl_combined['net'] = df_fGl_combined['credit'] - \
                                  df_fGl_combined['debit']  # Revenue will be positive and Expenses will be in negative.
 
-        df_budget = pd.read_sql('fBudget', engine)
+        df_budget = pd.DataFrame.from_dict(fBudget)
+
         # start_date coming from app.py [DatepickerRange] format like 2023-04-07 i.e 2023-07-01
         cm_begin_date = dt.strptime(start_date, '%Y-%m-%d')
         cm_end_date = dt.strptime(end_date, '%Y-%m-%d')  # 2023-07-31

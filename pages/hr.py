@@ -7,15 +7,11 @@ from dash.dependencies import Input, Output
 from dash import callback
 import plotly.express as px
 import pandas as pd
-from sqlalchemy import create_engine
-from creds import db_info
 from datetime import datetime as dt
-import sshtunnel
 
 
 dash.register_page(__name__, external_stylesheets=[dbc.themes.PULSE])
-sshtunnel.SSH_TIMEOUT = 5.0
-sshtunnel.TUNNEL_TIMEOUT = 5.0
+
 filters_lists = {'Designation': 'designation', 'Department': 'dept', 'Employee Type': 'emp_type',
                  'Nationality': 'nationality',
                  'Sex': 'sex', 'Maritial Status': 'maritial_state', 'Age Group': 'age_group',
@@ -158,7 +154,7 @@ def service_bracket(age):
      Output(component_id='second-selection', component_property='options')
      ],
 
-    [Input(component_id='database', component_property='data'),
+    [Input(component_id='dEmployee', component_property='data'),
      Input(component_id='first-dpdw', component_property='value'),
      Input(component_id='second-dpdw', component_property='value'),
      Input(component_id='first-dpn-dpdw', component_property='value'),
@@ -166,16 +162,15 @@ def service_bracket(age):
      Input(component_id='first-selection', component_property='value')],
     prevent_initial_call=True
 )
-def my_func(database, first_dpdw, second_dpdw, first_dpn_dpdw, second_dpn_dpdw, first_selection):
-    with sshtunnel.SSHTunnelForwarder((db_info['SSHHOST'], 22),
-                                      ssh_username=db_info['USERNAME'],
-                                      ssh_password=db_info['PWDLOGIN'],
-                                      remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
-        engine = create_engine(
-            f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{database}')
+def my_func(dEmployee, first_dpdw, second_dpdw, first_dpn_dpdw, second_dpn_dpdw, first_selection):
 
-        df_demployee = pd.read_sql('dEmployee', engine, parse_dates=[
-            'dob', 'doj', 'confirmation_date', 'last_increment', 'last_rejoin', 'termination_date'])
+        df_demployee = pd.DataFrame.from_dict(dEmployee)
+        df_demployee['dob'] = pd.to_datetime(df_demployee['dob'])
+        df_demployee['doj'] = pd.to_datetime(df_demployee['doj'])
+        df_demployee['confirmation_date'] = pd.to_datetime(df_demployee['confirmation_date'])
+        df_demployee['last_increment'] = pd.to_datetime(df_demployee['last_increment'])
+        df_demployee['last_rejoin'] = pd.to_datetime(df_demployee['last_rejoin'])
+        df_demployee['termination_date'] = pd.to_datetime(df_demployee['termination_date'])
 
         df_demployee['age'] = df_demployee['dob'].apply(
             lambda x: relativedelta(current_date, x).years)
@@ -234,61 +229,59 @@ def set_values(selection):
 
 @callback(
     Output(component_id='staff-movement', component_property='children'),
-    [Input(component_id='database', component_property='data'),
+    [Input(component_id='dEmployee', component_property='data'),
      Input(component_id='first-selection', component_property='value'),
      Input(component_id='second-selection', component_property='value')]
 )
-def update_emp_table(database, primary, secondary):
+def update_emp_table(dEmployee, primary, secondary):
     if len(secondary) == 0:
         return dash.no_update
     else:
-        with sshtunnel.SSHTunnelForwarder((db_info['SSHHOST'], 22),
-                                          ssh_username=db_info['USERNAME'],
-                                          ssh_password=db_info['PWDLOGIN'],
-                                          remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
-            engine = create_engine(
-                f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{database}')
+        df_demployee = pd.DataFrame.from_dict(dEmployee)
+        df_demployee['dob'] = pd.to_datetime(df_demployee['dob'])
+        df_demployee['doj'] = pd.to_datetime(df_demployee['doj'])
+        df_demployee['confirmation_date'] = pd.to_datetime(df_demployee['confirmation_date'])
+        df_demployee['last_increment'] = pd.to_datetime(df_demployee['last_increment'])
+        df_demployee['last_rejoin'] = pd.to_datetime(df_demployee['last_rejoin'])
+        df_demployee['termination_date'] = pd.to_datetime(df_demployee['termination_date'])
 
-            df_demployee = pd.read_sql('dEmployee', engine, parse_dates=[
-                'dob', 'doj', 'confirmation_date', 'last_increment', 'last_rejoin', 'termination_date'])
+        df_demployee['age'] = df_demployee['dob'].apply(
+            lambda x: relativedelta(current_date, x).years)
+        df_demployee['age_group'] = df_demployee['age'].apply(age_bracket)
+        df_demployee['service'] = df_demployee['doj'].apply(
+            lambda x: relativedelta(current_date, x).years)
+        df_demployee['service_period'] = df_demployee['service'].apply(
+            service_bracket)
 
-            df_demployee['age'] = df_demployee['dob'].apply(
-                lambda x: relativedelta(current_date, x).years)
-            df_demployee['age_group'] = df_demployee['age'].apply(age_bracket)
-            df_demployee['service'] = df_demployee['doj'].apply(
-                lambda x: relativedelta(current_date, x).years)
-            df_demployee['service_period'] = df_demployee['service'].apply(
-                service_bracket)
+        filt_emp_start = ((df_demployee['doj'] < start_date) & ((~df_demployee['termination_date'].notna()) |
+                                                                (df_demployee['termination_date'] >= start_date)) &
+                          (df_demployee[primary].isin(secondary)))
 
-            filt_emp_start = ((df_demployee['doj'] < start_date) & ((~df_demployee['termination_date'].notna()) |
-                                                                    (df_demployee['termination_date'] >= start_date)) &
-                              (df_demployee[primary].isin(secondary)))
+        emp_start: int = len(
+            df_demployee.loc[filt_emp_start]['emp_id'].unique())
 
-            emp_start: int = len(
-                df_demployee.loc[filt_emp_start]['emp_id'].unique())
+        filt_additions = (df_demployee['doj'] >= start_date) & (
+            df_demployee['doj'] <= current_date) & (df_demployee[primary].isin(secondary))
 
-            filt_additions = (df_demployee['doj'] >= start_date) & (
-                df_demployee['doj'] <= current_date) & (df_demployee[primary].isin(secondary))
+        emp_additions: int = len(
+            df_demployee.loc[filt_additions]['emp_id'].unique())
 
-            emp_additions: int = len(
-                df_demployee.loc[filt_additions]['emp_id'].unique())
+        filt_terminations = (df_demployee['termination_date'] >= start_date) & (
+            df_demployee['termination_date'] <= current_date) & (df_demployee[primary].isin(secondary))
 
-            filt_terminations = (df_demployee['termination_date'] >= start_date) & (
-                df_demployee['termination_date'] <= current_date) & (df_demployee[primary].isin(secondary))
+        emp_terminations: int = len(
+            df_demployee.loc[filt_terminations]['emp_id'].unique())
 
-            emp_terminations: int = len(
-                df_demployee.loc[filt_terminations]['emp_id'].unique())
+        emp_movement_data = pd.DataFrame(
+            {
+                "Description": ['No of staff at the start', '[+] No of staff joined', '[-] No of staff resigned',
+                                'No of staff at the end'],
+                "# Staff": [emp_start, emp_additions, emp_terminations * -1,
+                            (emp_start + emp_additions - emp_terminations)],
+            }
+        )
 
-            emp_movement_data = pd.DataFrame(
-                {
-                    "Description": ['No of staff at the start', '[+] No of staff joined', '[-] No of staff resigned',
-                                    'No of staff at the end'],
-                    "# Staff": [emp_start, emp_additions, emp_terminations * -1,
-                                (emp_start + emp_additions - emp_terminations)],
-                }
-            )
+        emp_movement = dbc.Table.from_dataframe(
+            emp_movement_data, striped=True, bordered=True, hover=True)
 
-            emp_movement = dbc.Table.from_dataframe(
-                emp_movement_data, striped=True, bordered=True, hover=True)
-
-            return emp_movement
+        return emp_movement

@@ -83,6 +83,14 @@ def check_date_format(date_str):
 app.layout = html.Div(children=[
     dcc.Store(id='start-date', data={}),
     dcc.Store(id='end-date', data={}),
+    dcc.Store(id='dCoAAdler', data={}),
+    dcc.Store(id='fGL', data={}),
+    dcc.Store(id='fBudget', data={}),
+    dcc.Store(id='dEmployee', data={}),
+    dcc.Store(id='dCustomers', data={}),
+    dcc.Store(id='fGlJob', data={}),
+    dcc.Store(id='exp_allocation', data={}),
+    dcc.Store(id='dJobs', data={}),
     dcc.Store(id='database', data={}),
     header_row,
     secondary_row,
@@ -121,7 +129,7 @@ def set_dates(company_db):
                                       remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
         engine = create_engine(
             f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{company_db}')
-        query = 'SELECT voucher_date FROM "fGL"'
+        query = 'SELECT voucher_date FROM fGL'
         df_fgl = pd.read_sql_query(query, engine)
 
         earliest_date = df_fgl['voucher_date'].min()
@@ -140,6 +148,14 @@ def set_dates(company_db):
     [
         Output(component_id='start-date', component_property='data'),
         Output(component_id='end-date', component_property='data'),
+        Output(component_id='dCoAAdler', component_property='data'),
+        Output(component_id='fGL', component_property='data'),
+        Output(component_id='fBudget', component_property='data'),
+        Output(component_id='dEmployee', component_property='data'),
+        Output(component_id='dCustomers', component_property='data'),
+        Output(component_id='fGlJob', component_property='data'),
+        Output(component_id='exp_allocation', component_property='data'),
+        Output(component_id='dJobs', component_property='data'),
         Output(component_id='database', component_property='data')
     ],
     [
@@ -152,7 +168,33 @@ def output_data(start_date, end_date, database):
     start_date = check_date_format(start_date)
     end_date = check_date_format(end_date)
 
-    return [start_date, end_date, database]
+    with sshtunnel.SSHTunnelForwarder((db_info['SSHHOST'], 22),
+                                      ssh_username=db_info['USERNAME'],
+                                      ssh_password=db_info['PWDLOGIN'],
+                                      remote_bind_address=(db_info['DBHOSTADDRESS'], 3306)) as tunnel:
+        engine = create_engine(
+            f'mysql+pymysql://{db_info["USERNAME"]}:{db_info["PWDDB"]}@{db_info["HOSTNAME"]}:{tunnel.local_bind_port}/{database}')
+
+        dCoAAdler = pd.read_sql('dCoAAdler', engine)
+        fGL = pd.read_sql('fGL', engine)
+        fBudget = pd.read_sql('fBudget', engine)
+        dEmployee = pd.read_sql('dEmployee', engine)
+        dCustomers = pd.read_sql('dCustomers', engine)
+        fGlJob = pd.read_sql('fGlJob', engine)
+        exp_allocation = pd.read_sql('exp_allocation', engine)
+        dJobs = pd.read_sql('dJobs', engine)
+
+        return [start_date,
+                end_date,
+                dCoAAdler.to_dict('records'),
+                fGL.to_dict('records'),
+                fBudget.to_dict('records'),
+                dEmployee.to_dict('records'),
+                dCustomers.to_dict('records'),
+                fGlJob.to_dict('records'),
+                exp_allocation.to_dict('records'),
+                dJobs.to_dict('records'),
+                database]
 
 
 if __name__ == '__main__':
