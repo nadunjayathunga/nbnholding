@@ -198,4 +198,4 @@ def output_data(start_date, end_date, database):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3050)
+    app.run(debug=False, port=3050)
